@@ -91,3 +91,11 @@ The default fixture produces 237 feature rows and 151 scored predictions. Execut
 Historical capture workflows supply normalized marks, notional, and liquidity estimates. Forecast error depends on the input pool universe, normalization, feature windows and execution-cost proxy. The JSON-RPC transport in `rpc.py` is available for upstream capture tooling.
 
 [DuckDB Parquet documentation](https://duckdb.org/docs/stable/data/parquet/overview) · [Polars I/O guide](https://docs.pola.rs/user-guide/io/)
+
+## Commit dates
+
+Both Git date fields on the 40 commits in the November 2026 portfolio update
+use retrospectively assigned milestones from 2026-09-01 through 2026-10-31,
+the project period listed in the résumé. Each commit records its assigned date
+in the Project-Milestone trailer and its original committer timestamp in
+the Original-Commit-Date trailer. Use git log --format=fuller to inspect the dates.
