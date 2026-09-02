@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "onchain-feature-store"
-version = "0.2.0"
+dynamic = ["version"]
 description = "Point-in-time on-chain features and walk-forward research"
 requires-python = ">=3.11"
 dependencies = [
@@ -24,3 +24,6 @@ onchain_feature_store = "feature_store.cli:main"
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+
+[tool.setuptools.dynamic]
+version = {attr = "feature_store.__version__"}

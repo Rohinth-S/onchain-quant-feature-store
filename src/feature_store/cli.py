@@ -6,6 +6,8 @@ import hashlib
 import json
 from pathlib import Path
 
+from . import __version__
+
 from .core import FeatureConfig, synthetic_events
 from .io import load_events, make_report, write_json
 from .materialize import materialize_features
@@ -21,6 +23,7 @@ def main() -> None:
     parser.add_argument("--window", type=int, default=8)
     parser.add_argument("--train-size", type=int)
     parser.add_argument("--seed", type=int, default=7)
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     args = parser.parse_args()
 
     try:
