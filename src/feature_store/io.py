@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 
+from .artifacts import write_text_atomic
+
 import pandas as pd
 import polars as pl
 
@@ -28,8 +30,7 @@ def load_events_csv(path: str | Path) -> pd.DataFrame:
 
 def write_json(value: dict, destination: str | Path) -> Path:
     path = Path(destination)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, indent=2, allow_nan=False) + "\n", encoding="utf-8")
+    write_text_atomic(path, json.dumps(value, indent=2, allow_nan=False) + "\n")
     return path
 
 
