@@ -21,3 +21,15 @@ def write_text_atomic(path: Path, text: str) -> None:
     finally:
         if staged is not None:
             staged.unlink(missing_ok=True)
+
+def require_distinct_paths(**paths: Path | None) -> None:
+    known: list[tuple[str, Path]] = []
+    for label, path in paths.items():
+        if path is None:
+            continue
+        resolved = path.resolve()
+        for other_label, other_path in known:
+            same_file = resolved.exists() and other_path.exists() and resolved.samefile(other_path)
+            if resolved == other_path or same_file:
+                raise ValueError(f"{label} and {other_label} must use distinct paths")
+        known.append((label, resolved))

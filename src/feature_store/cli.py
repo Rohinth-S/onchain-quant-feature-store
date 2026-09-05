@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from . import __version__
+from .artifacts import require_distinct_paths
 
 from .core import FeatureConfig, synthetic_events
 from .io import load_events, make_report, write_json
@@ -27,6 +28,11 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
+        require_distinct_paths(
+            input_file=args.input,
+            report=args.output,
+            dataset=args.dataset_dir,
+        )
         config = FeatureConfig(args.horizon, args.window)
         if args.input:
             with args.input.open("rb") as source:
