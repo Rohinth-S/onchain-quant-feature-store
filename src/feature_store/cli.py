@@ -49,6 +49,7 @@ def main() -> None:
             "config": asdict(config),
             "pools": {str(pool): int(count) for pool, count in features["pool"].value_counts().items()},
         })
+        report["producer"] = {"name": "onchain-feature-store", "version": __version__, "format_version": 1}
         if args.dataset_dir:
             publish_snapshot(features, predictions, report, args.dataset_dir)
         write_json(report, args.output)
