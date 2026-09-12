@@ -20,6 +20,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - run: python -m pip install '.[test]'
+      - run: python -m pip wheel --no-deps --wheel-dir dist .
+      - name: Install wheel and test dependencies
+        shell: bash
+        run: |
+          wheels=(dist/*.whl)
+          python -m pip install "${wheels[0]}[test]"
       - run: python -m pytest -q
       - run: onchain_feature_store --dataset-dir reports/ci-snapshot --output reports/ci.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: demo-${{ matrix.os }}-${{ matrix.python }}
+          path: reports/ci.json
+          if-no-files-found: error
