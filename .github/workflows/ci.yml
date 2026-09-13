@@ -33,3 +33,10 @@ jobs:
           name: demo-${{ matrix.os }}-${{ matrix.python }}
           path: reports/ci.json
           if-no-files-found: error
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t portfolio-replay .
+      - run: docker run --rm portfolio-replay --version
+      - run: docker run --rm portfolio-replay --output /tmp/container-demo.json
