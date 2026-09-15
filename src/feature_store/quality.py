@@ -38,6 +38,7 @@ def inspect_events(events: pd.DataFrame) -> QualityReport:
 
     issues = []
     frame = events.copy()
+    frame["pool"] = frame["pool"].astype("string").str.strip()
     timestamp = pd.to_datetime(frame["timestamp"], utc=True, format="mixed", errors="coerce")
     frame["timestamp"] = timestamp
     columns = sorted(NUMERIC_COLUMNS | OPTIONAL_NUMERIC_COLUMNS.intersection(frame.columns))
@@ -56,7 +57,8 @@ def inspect_events(events: pd.DataFrame) -> QualityReport:
             invalid |= np.asarray(mask)
     identity = ["pool", "event_id"] if "event_id" in frame else ["timestamp", "pool", "mid_price", "volume", "side"]
     if "event_id" in frame:
-        missing_id = frame["event_id"].isna() | frame["event_id"].astype(str).str.strip().eq("")
+        frame["event_id"] = frame["event_id"].astype("string").str.strip()
+        missing_id = frame["event_id"].isna() | frame["event_id"].eq("").fillna(False)
         if missing_id.any():
             issues.append("event_id cannot be empty when supplied")
             invalid |= np.asarray(missing_id)

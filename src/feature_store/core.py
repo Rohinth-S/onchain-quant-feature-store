@@ -87,6 +87,7 @@ def build_features(
     """Compute trailing features and forward labels within each pool's event order."""
     validate_events(events)
     frame = events.copy()
+    frame["pool"] = frame["pool"].astype("string").str.strip()
     frame["timestamp"] = pd.to_datetime(frame["timestamp"], utc=True, format="mixed")
     columns = sorted(NUMERIC_COLUMNS | OPTIONAL_NUMERIC_COLUMNS.intersection(events.columns))
     frame[columns] = frame[columns].astype(float)
