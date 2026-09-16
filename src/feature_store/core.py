@@ -8,6 +8,7 @@ import pandas as pd
 REQUIRED_COLUMNS = {"timestamp", "pool", "mid_price", "volume", "side", "gas_gwei", "liquidity_usd"}
 NUMERIC_COLUMNS = {"mid_price", "volume", "gas_gwei", "liquidity_usd"}
 OPTIONAL_NUMERIC_COLUMNS = {"gas_units", "native_price_usd"}
+POSITION_COLUMNS = ("block_number", "log_index")
 FEATURE_COLUMNS = (
     "realized_vol", "order_flow_imbalance", "liquidity_concentration",
     "price_impact_bps", "slippage_bps", "gas_cost_usd",
@@ -22,6 +23,21 @@ class FeatureConfig:
     def __post_init__(self) -> None:
         if self.horizon < 1 or self.vol_window < 3:
             raise ValueError("horizon must be >= 1 and vol_window must be >= 3")
+
+
+def chain_positions(events: pd.DataFrame) -> pd.DataFrame:
+    present = [key for key in POSITION_COLUMNS if key in events]
+    if not present:
+        return pd.DataFrame(index=events.index)
+    if len(present) != len(POSITION_COLUMNS):
+        raise ValueError("block_number and log_index must be supplied together")
+    positions = events[present].astype("string")
+    if any(not positions[key].str.fullmatch(r"[0-9]+").fillna(False).all() for key in present):
+        raise ValueError("block_number and log_index must be nonnegative integers")
+    try:
+        return positions.astype("uint64")
+    except (OverflowError, ValueError, TypeError) as exc:
+        raise ValueError("block_number and log_index must fit in uint64") from exc
 
 
 def validate_events(events: pd.DataFrame) -> None:
@@ -91,7 +107,10 @@ def build_features(
     frame["timestamp"] = pd.to_datetime(frame["timestamp"], utc=True, format="mixed")
     columns = sorted(NUMERIC_COLUMNS | OPTIONAL_NUMERIC_COLUMNS.intersection(events.columns))
     frame[columns] = frame[columns].astype(float)
-    frame = frame.sort_values("timestamp", kind="stable").reset_index(drop=True)
+    positions = chain_positions(frame)
+    for key in positions:
+        frame[key] = positions[key]
+    frame = frame.sort_values(["timestamp", *positions], kind="stable").reset_index(drop=True)
     frame["event_sequence"] = frame.index
     pools = [_pool_features(pool, cfg) for _, pool in frame.groupby("pool", sort=False)]
     result = pd.concat(pools).sort_values("event_sequence").dropna(subset=list(FEATURE_COLUMNS))

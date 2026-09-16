@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from .core import NUMERIC_COLUMNS, OPTIONAL_NUMERIC_COLUMNS, REQUIRED_COLUMNS
+from .core import NUMERIC_COLUMNS, OPTIONAL_NUMERIC_COLUMNS, REQUIRED_COLUMNS, chain_positions
 
 
 @dataclass(frozen=True)
@@ -63,4 +63,12 @@ def inspect_events(events: pd.DataFrame) -> QualityReport:
             issues.append("event_id cannot be empty when supplied")
             invalid |= np.asarray(missing_id)
     duplicates = int(frame.duplicated(subset=identity).sum())
+    try:
+        positions = chain_positions(frame)
+    except ValueError as exc:
+        issues.append(str(exc))
+    else:
+        if len(positions.columns):
+            ordered = positions.assign(pool=frame["pool"])
+            duplicates = max(duplicates, int(ordered.duplicated().sum()))
     return QualityReport(len(frame), int(invalid.sum()), duplicates, (), tuple(issues))
