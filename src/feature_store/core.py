@@ -40,6 +40,15 @@ def chain_positions(events: pd.DataFrame) -> pd.DataFrame:
         raise ValueError("block_number and log_index must fit in uint64") from exc
 
 
+def invalid_numerics(frame: pd.DataFrame) -> np.ndarray:
+    values = frame.to_numpy(dtype=float)
+    invalid = ~np.isfinite(values).all(axis=1)
+    for index, name in enumerate(frame.columns):
+        floor = values[:, index] < 0 if name in {"gas_gwei", "gas_units"} else values[:, index] <= 0
+        invalid |= floor
+    return invalid
+
+
 def validate_events(events: pd.DataFrame) -> None:
     missing = REQUIRED_COLUMNS.difference(events.columns)
     if missing:
@@ -51,9 +60,9 @@ def validate_events(events: pd.DataFrame) -> None:
     if events["pool"].isna().any() or events["pool"].astype(str).str.strip().eq("").any():
         raise ValueError("pool identifiers cannot be empty")
     columns = sorted(NUMERIC_COLUMNS | OPTIONAL_NUMERIC_COLUMNS.intersection(events.columns))
-    numeric = events[columns].apply(pd.to_numeric, errors="coerce").to_numpy(dtype=float)
-    if not np.isfinite(numeric).all() or (numeric <= 0).any():
-        raise ValueError("prices, volume, gas, and liquidity must be finite and positive")
+    numeric = events[columns].apply(pd.to_numeric, errors="coerce")
+    if invalid_numerics(numeric).any():
+        raise ValueError("prices, volume, and liquidity must be finite and positive, gas nonnegative")
     if not events["side"].isin({"buy", "sell"}).all():
         raise ValueError("side must contain only buy or sell")
 

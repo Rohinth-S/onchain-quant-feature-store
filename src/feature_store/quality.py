@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from .core import NUMERIC_COLUMNS, OPTIONAL_NUMERIC_COLUMNS, REQUIRED_COLUMNS, chain_positions
+from .core import NUMERIC_COLUMNS, OPTIONAL_NUMERIC_COLUMNS, REQUIRED_COLUMNS, chain_positions, invalid_numerics
 
 
 @dataclass(frozen=True)
@@ -43,9 +43,8 @@ def inspect_events(events: pd.DataFrame) -> QualityReport:
     frame["timestamp"] = timestamp
     columns = sorted(NUMERIC_COLUMNS | OPTIONAL_NUMERIC_COLUMNS.intersection(frame.columns))
     frame[columns] = frame[columns].apply(pd.to_numeric, errors="coerce")
-    numeric = frame[columns].to_numpy(dtype=float)
     checks = (
-        (~np.isfinite(numeric).all(axis=1) | (numeric <= 0).any(axis=1), "numeric fields must be finite and positive"),
+        (invalid_numerics(frame[columns]), "trade numeric fields must be finite and positive, gas nonnegative"),
         (timestamp.isna(), "timestamps must be valid"),
         (~frame["side"].isin({"buy", "sell"}), "side must contain only buy or sell"),
         (frame["pool"].isna() | frame["pool"].astype(str).str.strip().eq(""), "pool identifiers cannot be empty"),
