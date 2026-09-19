@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from .core import NUMERIC_COLUMNS, OPTIONAL_NUMERIC_COLUMNS, REQUIRED_COLUMNS, chain_positions, invalid_numerics
+from .core import NUMERIC_COLUMNS, OPTIONAL_NUMERIC_COLUMNS, REQUIRED_COLUMNS, chain_positions, event_timestamps, invalid_numerics
 
 
 @dataclass(frozen=True)
@@ -39,7 +39,7 @@ def inspect_events(events: pd.DataFrame) -> QualityReport:
     issues = []
     frame = events.copy()
     frame["pool"] = frame["pool"].astype("string").str.strip()
-    timestamp = pd.to_datetime(frame["timestamp"], utc=True, format="mixed", errors="coerce")
+    timestamp = event_timestamps(frame["timestamp"])
     frame["timestamp"] = timestamp
     columns = sorted(NUMERIC_COLUMNS | OPTIONAL_NUMERIC_COLUMNS.intersection(frame.columns))
     frame[columns] = frame[columns].apply(pd.to_numeric, errors="coerce")

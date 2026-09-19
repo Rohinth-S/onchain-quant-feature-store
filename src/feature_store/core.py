@@ -1,6 +1,7 @@
 """Causal market features and expanding-window baselines."""
 
 from dataclasses import dataclass
+from numbers import Real
 
 import numpy as np
 import pandas as pd
@@ -49,13 +50,18 @@ def invalid_numerics(frame: pd.DataFrame) -> np.ndarray:
     return invalid
 
 
+def event_timestamps(data: pd.Series) -> pd.Series:
+    converted = pd.to_datetime(data, utc=True, format="mixed", errors="coerce")
+    return converted.mask(data.map(lambda value: isinstance(value, Real)))
+
+
 def validate_events(events: pd.DataFrame) -> None:
     missing = REQUIRED_COLUMNS.difference(events.columns)
     if missing:
         raise ValueError(f"events missing required columns: {sorted(missing)}")
     if events.empty:
         raise ValueError("events must contain at least one row")
-    if pd.to_datetime(events["timestamp"], utc=True, format="mixed", errors="coerce").isna().any():
+    if event_timestamps(events["timestamp"]).isna().any():
         raise ValueError("timestamps must be valid UTC-compatible datetime values")
     if events["pool"].isna().any() or events["pool"].astype(str).str.strip().eq("").any():
         raise ValueError("pool identifiers cannot be empty")
@@ -113,7 +119,7 @@ def build_features(
     validate_events(events)
     frame = events.copy()
     frame["pool"] = frame["pool"].astype("string").str.strip()
-    frame["timestamp"] = pd.to_datetime(frame["timestamp"], utc=True, format="mixed")
+    frame["timestamp"] = event_timestamps(frame["timestamp"])
     columns = sorted(NUMERIC_COLUMNS | OPTIONAL_NUMERIC_COLUMNS.intersection(events.columns))
     frame[columns] = frame[columns].astype(float)
     positions = chain_positions(frame)
