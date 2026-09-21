@@ -11,7 +11,7 @@ import polars as pl
 from .core import FeatureConfig, score_predictions, validate_events, walk_forward_predictions
 
 
-def load_events(path: str | Path) -> pd.DataFrame:
+def load_events(path: str | Path, *, check: bool = True) -> pd.DataFrame:
     path = Path(path)
     if path.suffix.lower() == ".csv":
         frame = pl.read_csv(path, schema_overrides={"pool": pl.String, "event_id": pl.String})
@@ -20,7 +20,8 @@ def load_events(path: str | Path) -> pd.DataFrame:
     else:
         raise ValueError("event input must be CSV or Parquet")
     events = frame.to_pandas()
-    validate_events(events)
+    if check:
+        validate_events(events)
     return events
 
 

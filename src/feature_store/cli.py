@@ -12,6 +12,7 @@ from .artifacts import require_distinct_paths
 from .core import FeatureConfig, synthetic_events
 from .io import load_events, make_report, write_json
 from .materialize import materialize_features
+from .quality import inspect_events
 from .warehouse import publish_snapshot
 
 
@@ -23,6 +24,7 @@ def main() -> None:
     parser.add_argument("--horizon", type=int, default=3)
     parser.add_argument("--window", type=int, default=8)
     parser.add_argument("--train-size", type=int)
+    parser.add_argument("--quality-only", action="store_true", help="inspect raw input before modeling")
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     args = parser.parse_args()
@@ -37,11 +39,19 @@ def main() -> None:
         if args.input:
             with args.input.open("rb") as source:
                 digest = hashlib.file_digest(source, "sha256").hexdigest()
-            events = load_events(args.input)
+            events = load_events(args.input, check=not args.quality_only)
             provenance = {"kind": args.input.suffix.lower().lstrip("."), "sha256": digest}
         else:
             events = synthetic_events(seed=args.seed)
             provenance = {"kind": "synthetic", "seed": args.seed}
+        if args.quality_only:
+            if args.dataset_dir:
+                raise ValueError("quality-only inspection does not create a dataset")
+            quality = inspect_events(events)
+            value = {"source": provenance, "quality": {**asdict(quality), "valid": quality.valid}}
+            write_json(value, args.output)
+            print(json.dumps(value, allow_nan=False))
+            return
         features = materialize_features(events, config, include_unlabeled=True)
         report, predictions = make_report(features, args.train_size)
         report.update({
