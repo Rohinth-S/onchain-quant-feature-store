@@ -1,6 +1,7 @@
 """Input adapters and strict JSON report serialization."""
 
 import json
+from io import BytesIO
 from pathlib import Path
 
 from .artifacts import write_text_atomic
@@ -13,16 +14,22 @@ from .core import FeatureConfig, score_predictions, validate_events, walk_forwar
 
 def load_events(path: str | Path, *, check: bool = True) -> pd.DataFrame:
     path = Path(path)
+    return decode_events(path.read_bytes(), path.suffix, check=check)
+
+
+def decode_events(raw: bytes, suffix: str, *, check: bool = True) -> pd.DataFrame:
+    suffix = suffix.lower()
+    capture = BytesIO(raw)
     try:
-        if path.suffix.lower() == ".csv":
-            frame = pl.read_csv(path, schema_overrides={"pool": pl.String, "event_id": pl.String})
-        elif path.suffix.lower() == ".parquet":
-            frame = pl.read_parquet(path)
+        if suffix == ".csv":
+            frame = pl.read_csv(capture, schema_overrides={"pool": pl.String, "event_id": pl.String})
+        elif suffix == ".parquet":
+            frame = pl.read_parquet(capture)
         else:
             raise ValueError("event input must be CSV or Parquet")
         events = frame.to_pandas()
     except pl.exceptions.PolarsError as exc:
-        raise ValueError(f"cannot decode {path.suffix.lower()} events: {exc}") from exc
+        raise ValueError(f"cannot decode {suffix} events: {exc}") from exc
     if check:
         validate_events(events)
     return events

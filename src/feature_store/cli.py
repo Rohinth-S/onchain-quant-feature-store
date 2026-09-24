@@ -10,7 +10,7 @@ from . import __version__
 from .artifacts import require_distinct_paths
 
 from .core import FeatureConfig, synthetic_events
-from .io import load_events, make_report, write_json
+from .io import decode_events, make_report, write_json
 from .materialize import materialize_features
 from .quality import inspect_events
 from .warehouse import publish_snapshot
@@ -37,9 +37,9 @@ def main() -> None:
         )
         config = FeatureConfig(args.horizon, args.window)
         if args.input:
-            with args.input.open("rb") as source:
-                digest = hashlib.file_digest(source, "sha256").hexdigest()
-            events = load_events(args.input, check=not args.quality_only)
+            raw = args.input.read_bytes()
+            digest = hashlib.sha256(raw).hexdigest()
+            events = decode_events(raw, args.input.suffix, check=not args.quality_only)
             provenance = {"kind": args.input.suffix.lower().lstrip("."), "sha256": digest}
         else:
             events = synthetic_events(seed=args.seed)
