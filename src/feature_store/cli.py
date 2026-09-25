@@ -60,6 +60,10 @@ def main() -> None:
             "pools": {str(pool): int(count) for pool, count in features["pool"].value_counts().items()},
         })
         report["producer"] = {"name": "onchain-feature-store", "version": __version__, "format_version": 1}
+        identity = {
+            "source": provenance, "features": asdict(config), "train_size": args.train_size, "software": __version__,
+        }
+        report["dataset_id"] = hashlib.sha256(json.dumps(identity, sort_keys=True).encode("utf-8")).hexdigest()
         if args.dataset_dir:
             publish_snapshot(features, predictions, report, args.dataset_dir)
         write_json(report, args.output)
