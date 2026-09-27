@@ -163,7 +163,7 @@ def walk_forward_predictions(
         scale = np.where(deviation > 0, deviation, 1.0)
         matrix = np.column_stack((np.ones(len(x_train)), (x_train - mean) / scale))
         coefficients = np.linalg.lstsq(matrix, targets[train], rcond=None)[0]
-        batch = frame.iloc[start:stop][["pool", "timestamp", "label_end", "target_cost_bps", "target_vol"]].copy()
+        batch = frame.iloc[start:stop][["event_sequence", "pool", "timestamp", "label_end", "target_cost_bps", "target_vol"]].copy()
         test_matrix = np.column_stack((np.ones(len(batch)), (inputs[start:stop] - mean) / scale))
         batch[["pred_cost_bps", "pred_vol"]] = np.maximum(test_matrix @ coefficients, 0)
         batch["baseline_cost_bps"] = frame["slippage_bps"].iloc[start:stop].to_numpy()
