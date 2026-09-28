@@ -141,6 +141,8 @@ def walk_forward_predictions(
     if train_size < 8 or fold_size < 1:
         raise ValueError("train_size must be >= 8 and fold_size must be positive")
     frame = features.dropna(subset=["label_end", "target_cost_bps", "target_vol"])
+    if frame["timestamp"].isna().any() or (frame["label_end"] < frame["timestamp"]).any():
+        raise ValueError("completed labels must end at or after a valid feature timestamp")
     frame = frame.sort_values("timestamp", kind="stable").reset_index(drop=True)
     inputs = frame[list(FEATURE_COLUMNS)].to_numpy(dtype=float)
     targets = frame[["target_cost_bps", "target_vol"]].to_numpy(dtype=float)
