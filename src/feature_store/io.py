@@ -45,13 +45,16 @@ def write_json(value: dict, destination: str | Path) -> Path:
     return path
 
 
-def make_report(features: pd.DataFrame, train_size: int | None = None) -> tuple[dict, pd.DataFrame]:
+def make_report(
+    features: pd.DataFrame, train_size: int | None = None, *, fold_size: int = 32,
+) -> tuple[dict, pd.DataFrame]:
     size = train_size if train_size is not None else min(80, max(8, len(features) // 2))
-    predictions = walk_forward_predictions(features, size)
+    predictions = walk_forward_predictions(features, size, fold_size=fold_size)
     score = score_predictions(predictions)
     if score["observations"]:
         score["rmse_bps"] = score["execution_cost"]["rmse"]
     score["train_size"] = size
+    score["fold_size"] = fold_size
     measures = features[["realized_vol", "order_flow_imbalance", "slippage_bps", "gas_cost_usd"]]
     summary = json.loads(measures.describe().round(6).to_json())
     return {

@@ -24,6 +24,7 @@ def main() -> None:
     parser.add_argument("--horizon", type=int, default=3)
     parser.add_argument("--window", type=int, default=8)
     parser.add_argument("--train-size", type=int)
+    parser.add_argument("--fold-size", type=int, default=32)
     parser.add_argument("--quality-only", action="store_true", help="inspect raw input before modeling")
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -53,7 +54,7 @@ def main() -> None:
             print(json.dumps(value, allow_nan=False))
             return
         features = materialize_features(events, config, include_unlabeled=True)
-        report, predictions = make_report(features, args.train_size)
+        report, predictions = make_report(features, args.train_size, fold_size=args.fold_size)
         report.update({
             "source": {**provenance, "rows": len(events)},
             "config": asdict(config),
@@ -61,7 +62,8 @@ def main() -> None:
         })
         report["producer"] = {"name": "onchain-feature-store", "version": __version__, "format_version": 1}
         identity = {
-            "source": provenance, "features": asdict(config), "train_size": args.train_size, "software": __version__,
+            "source": provenance, "features": asdict(config), "train_size": args.train_size,
+            "fold_size": args.fold_size, "software": __version__,
         }
         report["dataset_id"] = hashlib.sha256(json.dumps(identity, sort_keys=True).encode("utf-8")).hexdigest()
         if args.dataset_dir:
