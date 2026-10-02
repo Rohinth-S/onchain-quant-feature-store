@@ -135,11 +135,13 @@ def build_features(
 
 
 def walk_forward_predictions(
-    features: pd.DataFrame, train_size: int = 80, *, fold_size: int = 32,
+    features: pd.DataFrame, train_size: int = 80, *, fold_size: int = 32, max_train_rows: int | None = None,
 ) -> pd.DataFrame:
     """Refit on labels settled strictly before the first decision of each fold."""
     if train_size < 8 or fold_size < 1:
         raise ValueError("train_size must be >= 8 and fold_size must be positive")
+    if max_train_rows is not None and max_train_rows < train_size:
+        raise ValueError("max_train_rows must be at least train_size")
     frame = features.dropna(subset=["label_end", "target_cost_bps", "target_vol"])
     if frame["timestamp"].isna().any() or (frame["label_end"] < frame["timestamp"]).any():
         raise ValueError("completed labels must end at or after a valid feature timestamp")
@@ -152,8 +154,10 @@ def walk_forward_predictions(
     start = train_size
     while start < len(frame):
         cutoff = frame.loc[start, "timestamp"]
-        train = (frame["label_end"] < cutoff).to_numpy()
-        if train.sum() < train_size:
+        train = np.flatnonzero((frame["label_end"] < cutoff).to_numpy())
+        if max_train_rows is not None:
+            train = train[-max_train_rows:]
+        if len(train) < train_size:
             start += 1
             continue
         stop = start + fold_size
@@ -170,8 +174,8 @@ def walk_forward_predictions(
         batch[["pred_cost_bps", "pred_vol"]] = np.maximum(test_matrix @ coefficients, 0)
         batch["baseline_cost_bps"] = frame["slippage_bps"].iloc[start:stop].to_numpy()
         batch["baseline_vol"] = frame["realized_vol"].iloc[start:stop].to_numpy()
-        batch["training_rows"] = int(train.sum())
-        batch["training_last_label_end"] = frame.loc[train, "label_end"].max()
+        batch["training_rows"] = len(train)
+        batch["training_last_label_end"] = frame["label_end"].iloc[train].max()
         outputs.append(batch)
         start = stop
     return pd.concat(outputs, ignore_index=True) if outputs else pd.DataFrame()
