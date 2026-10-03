@@ -56,6 +56,16 @@ def make_report(
     score["train_size"] = size
     score["fold_size"] = fold_size
     score["max_train_rows"] = max_train_rows
+    score["folds"] = [
+        {
+            "fold": int(fold), "rows": int(fold_rows["training_rows"].iloc[0]),
+            "first_training_event": fold_rows["training_first_timestamp"].min().isoformat(),
+            "last_training_label": fold_rows["training_last_label_end"].max().isoformat(),
+            "first_decision": fold_rows["timestamp"].min().isoformat(),
+            "last_decision": fold_rows["timestamp"].max().isoformat(),
+        }
+        for fold, fold_rows in predictions.groupby("fold", sort=True)
+    ] if not predictions.empty else []
     measures = features[["realized_vol", "order_flow_imbalance", "slippage_bps", "gas_cost_usd"]]
     summary = json.loads(measures.describe().round(6).to_json())
     return {

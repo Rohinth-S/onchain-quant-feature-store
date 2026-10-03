@@ -175,6 +175,8 @@ def walk_forward_predictions(
         batch["baseline_cost_bps"] = frame["slippage_bps"].iloc[start:stop].to_numpy()
         batch["baseline_vol"] = frame["realized_vol"].iloc[start:stop].to_numpy()
         batch["training_rows"] = len(train)
+        batch["fold"] = len(outputs) + 1
+        batch["training_first_timestamp"] = frame["timestamp"].iloc[train].min()
         batch["training_last_label_end"] = frame["label_end"].iloc[train].max()
         outputs.append(batch)
         start = stop
