@@ -190,10 +190,12 @@ def score_predictions(predictions: pd.DataFrame) -> dict:
     for target, suffix in (("execution_cost", "cost_bps"), ("volatility", "vol")):
         actual = predictions[f"target_{suffix}"].to_numpy()
         errors = predictions[[f"pred_{suffix}", f"baseline_{suffix}"]].to_numpy() - actual[:, None]
+        rmse, baseline_rmse = np.sqrt((errors**2).mean(axis=0))
         result[target] = {
-            "rmse": float(np.sqrt((errors[:, 0] ** 2).mean())),
+            "rmse": float(rmse), "baseline_rmse": float(baseline_rmse),
             "mae": float(np.abs(errors[:, 0]).mean()),
-            "baseline_rmse": float(np.sqrt((errors[:, 1] ** 2).mean())),
+            "mean_signed_error": float(errors[:, 0].mean()),
+            "skill_vs_persistence": float(1 - rmse / baseline_rmse) if baseline_rmse else None,
         }
     return result
 
