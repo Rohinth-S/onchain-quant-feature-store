@@ -71,6 +71,9 @@ def make_report(
     return {
         "rows": len(features), "columns": list(features.columns), "walk_forward": score,
         "feature_summary": summary,
+        "pool_scores": {
+            str(pool): score_predictions(rows) for pool, rows in predictions.groupby("pool", sort=True)
+        } if not predictions.empty else {},
     }, predictions
 
 
