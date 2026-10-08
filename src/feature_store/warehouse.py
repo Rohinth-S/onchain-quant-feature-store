@@ -30,10 +30,9 @@ def publish_snapshot(
                 db.register("incoming", frame)
                 db.execute(f"CREATE TABLE {name} AS SELECT * FROM incoming ORDER BY event_sequence")
                 db.unregister("incoming")
-            if not predictions.empty:
-                db.register("incoming", predictions)
-                db.execute("CREATE TABLE predictions AS SELECT * FROM incoming")
-                db.unregister("incoming")
+            db.register("incoming", predictions)
+            db.execute("CREATE TABLE predictions AS SELECT * FROM incoming")
+            db.unregister("incoming")
             db.execute("CREATE TABLE manifest (payload JSON)")
             db.execute("INSERT INTO manifest VALUES (?)", [json.dumps(report, allow_nan=False)])
             parquet = (stage / "parquet").as_posix().replace("'", "''")

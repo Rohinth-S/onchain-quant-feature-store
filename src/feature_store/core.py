@@ -180,7 +180,16 @@ def walk_forward_predictions(
         batch["training_last_label_end"] = frame["label_end"].iloc[train].max()
         outputs.append(batch)
         start = stop
-    return pd.concat(outputs, ignore_index=True) if outputs else pd.DataFrame()
+    if outputs:
+        return pd.concat(outputs, ignore_index=True)
+    empty = frame[["event_sequence", "pool", "timestamp", "label_end", "target_cost_bps", "target_vol"]].iloc[:0].copy()
+    return empty.assign(
+        pred_cost_bps=pd.Series(dtype="float64"), pred_vol=pd.Series(dtype="float64"),
+        baseline_cost_bps=pd.Series(dtype="float64"), baseline_vol=pd.Series(dtype="float64"),
+        training_rows=pd.Series(dtype="int64"), fold=pd.Series(dtype="int64"),
+        training_first_timestamp=pd.Series(dtype="datetime64[ns, UTC]"),
+        training_last_label_end=pd.Series(dtype="datetime64[ns, UTC]"),
+    )
 
 
 def score_predictions(predictions: pd.DataFrame) -> dict:
