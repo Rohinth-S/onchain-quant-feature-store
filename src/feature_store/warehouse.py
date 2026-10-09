@@ -34,6 +34,11 @@ def publish_snapshot(
             db.execute("CREATE TABLE predictions AS SELECT * FROM incoming")
             db.unregister("incoming")
             db.execute("CREATE TABLE manifest (payload JSON)")
+            db.execute("""
+                CREATE VIEW latest_features AS
+                SELECT * FROM features
+                QUALIFY row_number() OVER (PARTITION BY pool ORDER BY event_sequence DESC) = 1
+            """)
             db.execute("INSERT INTO manifest VALUES (?)", [json.dumps(report, allow_nan=False)])
             parquet = (stage / "parquet").as_posix().replace("'", "''")
             if feature_rows.empty:
