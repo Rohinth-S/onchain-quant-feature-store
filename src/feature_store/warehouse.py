@@ -24,6 +24,10 @@ def publish_snapshot(
         stage.mkdir()
         feature_rows = features.drop(columns=list(LABEL_COLUMNS))
         label_rows = features[["event_sequence", *LABEL_COLUMNS]].dropna()
+        if not feature_rows["event_sequence"].is_unique:
+            raise ValueError("feature event_sequence keys must be unique")
+        if not predictions["event_sequence"].is_unique or not predictions["event_sequence"].isin(label_rows["event_sequence"]).all():
+            raise ValueError("each scored event must reference exactly one completed label")
         with duckdb.connect(str(stage / "features.duckdb"), config={"threads": 1}) as db:
             db.execute("SET TimeZone = 'UTC'")
             for name, frame in (("features", feature_rows), ("labels", label_rows)):
