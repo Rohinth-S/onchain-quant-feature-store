@@ -32,7 +32,8 @@ def publish_snapshot(
             db.execute("SET TimeZone = 'UTC'")
             for name, frame in (("features", feature_rows), ("labels", label_rows)):
                 db.register("incoming", frame)
-                db.execute(f"CREATE TABLE {name} AS SELECT * FROM incoming ORDER BY event_sequence")
+                projection = "* REPLACE (CAST(feature_date AS DATE) AS feature_date)" if name == "features" else "*"
+                db.execute(f"CREATE TABLE {name} AS SELECT {projection} FROM incoming ORDER BY event_sequence")
                 db.unregister("incoming")
             db.register("incoming", predictions)
             db.execute("CREATE TABLE predictions AS SELECT * FROM incoming")
