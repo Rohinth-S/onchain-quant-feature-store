@@ -37,6 +37,8 @@ def main() -> None:
             report=args.output,
             dataset=args.dataset_dir,
         )
+        if args.dataset_dir and args.output.resolve().is_relative_to(args.dataset_dir.resolve()):
+            raise ValueError("standalone report must be outside the immutable dataset directory")
         config = FeatureConfig(args.horizon, args.window)
         if args.input:
             raw = args.input.read_bytes()
