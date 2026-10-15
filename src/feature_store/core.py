@@ -129,6 +129,8 @@ def build_features(
     frame["event_sequence"] = frame.index
     pools = [_pool_features(pool, cfg) for _, pool in frame.groupby("pool", sort=False)]
     result = pd.concat(pools).sort_values("event_sequence").dropna(subset=list(FEATURE_COLUMNS))
+    if not np.isfinite(result[list(FEATURE_COLUMNS)].to_numpy(dtype=float)).all():
+        raise ValueError("derived features overflowed, check input price and liquidity units")
     if not include_unlabeled:
         result = result.dropna(subset=["target_cost_bps", "target_vol"])
     return result.reset_index(drop=True)
