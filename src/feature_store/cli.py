@@ -9,7 +9,7 @@ from pathlib import Path
 from . import __version__
 from .artifacts import require_distinct_paths
 
-from .core import FeatureConfig, synthetic_events
+from .core import FeatureConfig, event_timestamps, synthetic_events
 from .io import decode_events, make_report, write_json
 from .materialize import materialize_features
 from .quality import inspect_events
@@ -58,8 +58,11 @@ def main() -> None:
             return
         features = materialize_features(events, config, include_unlabeled=True)
         report, predictions = make_report(features, args.train_size, fold_size=args.fold_size, max_train_rows=args.max_train_rows)
+        timestamps = event_timestamps(events["timestamp"])
         report.update({
-            "source": {**provenance, "rows": len(events)},
+            "source": {**provenance, "rows": len(events), "first_event": timestamps.min().isoformat(),
+                       "last_event": timestamps.max().isoformat()},
+            "quality": {**asdict(inspect_events(events)), "valid": True},
             "config": asdict(config),
             "pools": {str(pool): int(count) for pool, count in features["pool"].value_counts().items()},
         })
