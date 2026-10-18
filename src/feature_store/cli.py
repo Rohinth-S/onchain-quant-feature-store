@@ -64,6 +64,10 @@ def main() -> None:
                        "last_event": timestamps.max().isoformat()},
             "quality": {**asdict(inspect_events(events)), "valid": True},
             "config": asdict(config),
+            "gas_inputs": {
+                "units": "captured" if "gas_units" in events else "fixed_210000",
+                "native_price": "captured" if "native_price_usd" in events else "pool_mid_price_proxy",
+            },
             "pools": {str(pool): int(count) for pool, count in features["pool"].value_counts().items()},
         })
         report["producer"] = {"name": "onchain-feature-store", "version": __version__, "format_version": 1}
