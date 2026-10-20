@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 
 from . import __version__
-from .artifacts import require_distinct_paths
+from .artifacts import require_distinct_paths, write_text_atomic
 
 from .core import FeatureConfig, event_timestamps, synthetic_events
 from .io import decode_events, make_report, write_json
@@ -21,6 +21,7 @@ def main() -> None:
     parser.add_argument("--input", type=Path, help="normalized CSV or Parquet (default: seeded demo)")
     parser.add_argument("--output", type=Path, default=Path("reports/feature-report.json"))
     parser.add_argument("--dataset-dir", type=Path, help="publish a new DuckDB and Parquet snapshot directory")
+    parser.add_argument("--predictions-csv", type=Path, help="export the scored prediction ledger")
     parser.add_argument("--horizon", type=int, default=3)
     parser.add_argument("--window", type=int, default=8)
     parser.add_argument("--train-size", type=int)
@@ -36,9 +37,13 @@ def main() -> None:
             input_file=args.input,
             report=args.output,
             dataset=args.dataset_dir,
+            predictions=args.predictions_csv,
         )
-        if args.dataset_dir and args.output.resolve().is_relative_to(args.dataset_dir.resolve()):
-            raise ValueError("standalone report must be outside the immutable dataset directory")
+        if args.dataset_dir and any(
+            path is not None and path.resolve().is_relative_to(args.dataset_dir.resolve())
+            for path in (args.output, args.predictions_csv)
+        ):
+            raise ValueError("standalone outputs must be outside the immutable dataset directory")
         config = FeatureConfig(args.horizon, args.window)
         if args.input:
             raw = args.input.read_bytes()
@@ -49,8 +54,8 @@ def main() -> None:
             events = synthetic_events(seed=args.seed)
             provenance = {"kind": "synthetic", "seed": args.seed}
         if args.quality_only:
-            if args.dataset_dir:
-                raise ValueError("quality-only inspection does not create a dataset")
+            if args.dataset_dir or args.predictions_csv:
+                raise ValueError("quality-only inspection does not create a dataset or predictions")
             quality = inspect_events(events)
             value = {"source": provenance, "quality": {**asdict(quality), "valid": quality.valid}}
             write_json(value, args.output)
@@ -78,6 +83,8 @@ def main() -> None:
         report["dataset_id"] = hashlib.sha256(json.dumps(identity, sort_keys=True).encode("utf-8")).hexdigest()
         if args.dataset_dir:
             publish_snapshot(features, predictions, report, args.dataset_dir)
+        if args.predictions_csv:
+            write_text_atomic(args.predictions_csv, predictions.to_csv(index=False, lineterminator="\n"))
         write_json(report, args.output)
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
