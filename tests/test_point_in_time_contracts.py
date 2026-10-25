@@ -34,3 +34,16 @@ def test_report_exposes_settled_training_boundaries_and_rolling_caps():
     bad.loc[0, "label_end"] = bad.loc[0, "timestamp"] - pd.Timedelta(minutes=1)
     with pytest.raises(ValueError, match="labels must end"):
         make_report(bad, 8)
+
+def test_short_capture_still_has_typed_warehouse_schema(tmp_path):
+    import duckdb
+    from feature_store.io import make_report
+    from feature_store.materialize import materialize_features
+    from feature_store.warehouse import publish_snapshot
+
+    features = materialize_features(synthetic_events(8), include_unlabeled=True)
+    report, predictions = make_report(features)
+    target = publish_snapshot(features, predictions, report, tmp_path / "snapshot")
+    with duckdb.connect(str(target / "features.duckdb")) as conn:
+        assert conn.execute("SELECT count(*) FROM predictions").fetchone() == (0,)
+        assert conn.execute("SELECT typeof(feature_date) FROM latest_features").fetchone() == ("DATE",)
