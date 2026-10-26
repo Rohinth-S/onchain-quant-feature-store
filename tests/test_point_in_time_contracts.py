@@ -47,3 +47,15 @@ def test_short_capture_still_has_typed_warehouse_schema(tmp_path):
     with duckdb.connect(str(target / "features.duckdb")) as conn:
         assert conn.execute("SELECT count(*) FROM predictions").fetchone() == (0,)
         assert conn.execute("SELECT typeof(feature_date) FROM latest_features").fetchone() == ("DATE",)
+
+def test_csv_and_parquet_capture_parity(tmp_path):
+    from feature_store.io import load_events
+
+    source = synthetic_events(20)
+    csv_path = tmp_path / "events.csv"
+    parquet_path = tmp_path / "events.parquet"
+    source.to_csv(csv_path, index=False)
+    source.to_parquet(parquet_path, index=False)
+    left = build_features(load_events(csv_path))
+    right = build_features(load_events(parquet_path))
+    pd.testing.assert_frame_equal(left, right, check_dtype=False, atol=1e-10)
