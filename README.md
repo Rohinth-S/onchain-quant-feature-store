@@ -42,3 +42,7 @@ The report is JSON and contains the walk-forward score plus descriptive statisti
 
 ## Assumptions and limitations
 The fixture approximates a single pool and does not claim to reproduce chain-specific tick math. Gas conversion and impact formulas are explicit research assumptions. Replace the fixture with validated decoded logs before making trading decisions.
+
+## Operations runbooks
+
+The research and live-adapter invariants are maintained as focused runbooks in [`docs/operations`](docs/operations/). The set covers event schemas, leakage controls, RPC replay, reorgs, slippage units, reproducibility, and model risk.
