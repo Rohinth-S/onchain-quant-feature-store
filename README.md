@@ -61,7 +61,7 @@ flowchart LR
 | `mid_price` | Positive pool mark in USD per base unit. |
 | `volume`, `liquidity_usd` | Swap notional and liquidity proxy in USD. |
 | `side` | `buy` or `sell` from the trader's perspective. |
-| `gas_gwei` | Positive gas price in gwei. |
+| `gas_gwei` | Nonnegative gas price in gwei. |
 | `gas_units`, `native_price_usd` | Optional gas units and native-token USD mark. Omitted values use 210,000 units and the supplied pool mark. |
 
 The rolling volatility is the root mean square of log returns per event. The concentration feature is a trailing trade-notional share within one pool. The cost proxy adds the absolute price move in basis points to trade notional divided by the supplied liquidity proxy. Exported captures carry a SHA-256 source fingerprint.
@@ -70,7 +70,7 @@ The rolling volatility is the root mean square of log returns per event. The con
 
 The cost label observes the next specified horizon's slippage proxy. The volatility label uses the next horizon's returns. Both record the timestamp of the outcome's final observation. A training row becomes eligible only when its label has settled strictly before the first decision in the evaluation fold. Scaling is fitted inside the training fold. The JSON report includes RMSE, MAE and persistence RMSE for both targets. Small batches are still exported and report `insufficient_history` when evaluation lacks settled labels.
 
-The DuckDB snapshot contains `features`, `labels`, `manifest` and, when scored, `predictions`. The latest mature features remain available even when their future outcomes have yet to settle. The Parquet files contain the feature table.
+The DuckDB snapshot contains `features`, `labels`, `manifest` `predictions`, including an empty typed table when observations are insufficient. The latest mature features remain available even when their future outcomes have yet to settle. The Parquet files contain the feature table.
 
 ```sql
 SELECT timestamp, pool, order_flow_imbalance, gas_cost_usd
@@ -99,3 +99,16 @@ use retrospectively assigned milestones from 2026-09-01 through 2026-10-31,
 the project period listed in the résumé. Each commit records its assigned date
 in the Project-Milestone trailer and its original committer timestamp in
 the Original-Commit-Date trailer. Use git log --format=fuller to inspect the dates.
+
+## Reproduce a specific evaluation
+
+Set --train-size for the minimum settled history, --fold-size for the decision batch,
+and --max-train-rows for an optional rolling cap. The manifest records fold boundaries,
+per-pool error, signed bias, and skill versus persistence. The dataset ID includes the
+input fingerprint, evaluation options, and producer version. The latest_features view
+returns the latest usable feature vector in each pool. The predictions table joins to
+features and labels on event_sequence.
+
+Use --quality-only to investigate a capture before fitting and --predictions-csv to inspect
+the scored ledger outside DuckDB. Supply block_number and log_index together to resolve
+same-time chain events. Gas fields accept zero for gas-free captures.
