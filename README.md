@@ -112,3 +112,7 @@ features and labels on event_sequence.
 Use --quality-only to investigate a capture before fitting and --predictions-csv to inspect
 the scored ledger outside DuckDB. Supply block_number and log_index together to resolve
 same-time chain events. Gas fields accept zero for gas-free captures.
+
+Run the bundled example with
+`onchain_feature_store --input examples/two-pools.csv --output reports/two-pools.json`.
+The examples directory contains a small synthetic input with distinct same-block log positions.
