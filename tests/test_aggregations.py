@@ -25,3 +25,17 @@ def test_pool_window_features_are_causal_and_aggregate():
 def test_future_or_unsorted_rows_are_rejected():
     with pytest.raises(ValueError, match="sorted"):
         assert_no_future_data(_events().iloc[::-1])
+
+
+def test_interleaved_pools_keep_their_own_windows():
+    events = pd.DataFrame([
+        {"timestamp": "2026-01-01T00:00:00Z", "pool": "a", "mid_price": 10, "volume": 1, "side": "buy"},
+        {"timestamp": "2026-01-01T00:01:00Z", "pool": "b", "mid_price": 20, "volume": 4, "side": "sell"},
+        {"timestamp": "2026-01-01T00:02:00Z", "pool": "a", "mid_price": 11, "volume": 2, "side": "sell"},
+        {"timestamp": "2026-01-01T00:03:00Z", "pool": "b", "mid_price": 21, "volume": 5, "side": "buy"},
+    ])
+    result = pool_window_features(events, WindowSpec(minutes=15))
+    a = result[result.pool == "a"].sort_values("timestamp")
+    b = result[result.pool == "b"].sort_values("timestamp")
+    assert a.window_volume.tolist() == [1, 3]
+    assert b.window_volume.tolist() == [4, 9]
