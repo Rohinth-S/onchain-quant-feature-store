@@ -28,6 +28,7 @@ jobs:
           python -m pip install "${wheels[0]}[test]"
       - run: python -m pytest -q
       - run: onchain_feature_store --dataset-dir reports/ci-snapshot --output reports/ci.json
+      - run: onchain_feature_store --input examples/two-pools.csv --output reports/two-pools.json
       - uses: actions/upload-artifact@v4
         with:
           name: demo-${{ matrix.os }}-${{ matrix.python }}
