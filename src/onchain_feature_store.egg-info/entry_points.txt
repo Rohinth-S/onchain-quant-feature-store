@@ -1,0 +1,2 @@
+[console_scripts]
+onchain_feature_store = feature_store.cli:main
