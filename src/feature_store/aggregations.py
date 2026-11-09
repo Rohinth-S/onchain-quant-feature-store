@@ -45,12 +45,24 @@ def pool_window_features(events: pd.DataFrame, spec: WindowSpec = WindowSpec()) 
     assert_no_future_data(frame)
     frame["signed_volume"] = frame["volume"].where(frame["side"].eq("buy"), -frame["volume"])
     frame["notional"] = frame["mid_price"] * frame["volume"]
-    grouped = frame.set_index("timestamp").groupby("pool", sort=False)
     window = f"{spec.minutes}min"
-    frame["window_volume"] = grouped["volume"].rolling(window, closed="both" ).sum().reset_index(level=0, drop=True).to_numpy()
-    frame["window_signed_volume"] = grouped["signed_volume"].rolling(window, closed="both").sum().reset_index(level=0, drop=True).to_numpy()
-    frame["window_notional"] = grouped["notional"].rolling(window, closed="both").sum().reset_index(level=0, drop=True).to_numpy()
-    frame["window_trades"] = grouped["volume"].rolling(window, closed="both").count().reset_index(level=0, drop=True).to_numpy()
+
+    def causal_roll(column: str, aggregation: str = "sum") -> pd.Series:
+        # Grouped rolling places each pool contiguously in its result, while
+        # ``frame`` is timestamp ordered across pools.  Write by original row
+        # index so values cannot silently be assigned to the wrong pool.
+        result = pd.Series(index=frame.index, dtype="float64")
+        for _, indices in frame.groupby("pool", sort=False).groups.items():
+            group = frame.loc[indices].sort_values("timestamp")
+            rolling = group.set_index("timestamp")[column].rolling(window, closed="both")
+            values = getattr(rolling, aggregation)().to_numpy()
+            result.loc[group.index] = values
+        return result
+
+    frame["window_volume"] = causal_roll("volume")
+    frame["window_signed_volume"] = causal_roll("signed_volume")
+    frame["window_notional"] = causal_roll("notional")
+    frame["window_trades"] = causal_roll("volume", "count")
     frame["window_vwap"] = frame["window_notional"] / frame["window_volume"]
     frame["window_imbalance"] = frame["window_signed_volume"] / frame["window_volume"]
     return frame.drop(columns=["signed_volume", "notional"])
