@@ -1,10 +1,11 @@
-"""Data quality contracts for event ingestion and feature materialization."""
-from __future__ import annotations
+"""Data-quality contracts for event ingestion and feature materialization."""
 
 from dataclasses import dataclass
+
+import numpy as np
 import pandas as pd
 
-from .core import REQUIRED_COLUMNS
+from .core import NUMERIC_COLUMNS, OPTIONAL_NUMERIC_COLUMNS, REQUIRED_COLUMNS
 
 
 @dataclass(frozen=True)
@@ -17,32 +18,47 @@ class QualityReport:
 
     @property
     def valid(self) -> bool:
-        return not self.missing_columns and self.invalid_rows == 0 and self.duplicate_rows == 0 and not self.issues
+        return not (self.missing_columns or self.invalid_rows or self.duplicate_rows or self.issues)
 
     def raise_if_invalid(self) -> None:
-        if not self.valid:
-            problems = list(self.missing_columns) + list(self.issues)
-            if self.duplicate_rows:
-                problems.append(f"{self.duplicate_rows} duplicate rows")
-            raise ValueError("invalid event batch: " + "; ".join(problems))
+        if self.valid:
+            return
+        problems = [*self.missing_columns, *self.issues]
+        if self.duplicate_rows:
+            problems.append(f"{self.duplicate_rows} duplicate rows")
+        raise ValueError("invalid event batch: " + ", ".join(problems))
 
 
 def inspect_events(events: pd.DataFrame) -> QualityReport:
-    """Return a non-throwing report suitable for ingestion dashboards."""
     missing = tuple(sorted(REQUIRED_COLUMNS.difference(events.columns)))
     if missing:
         return QualityReport(len(events), len(events), 0, missing, ("required columns missing",))
-    issues: list[str] = []
-    timestamp = pd.to_datetime(events["timestamp"], utc=True, errors="coerce")
-    numeric = events[["mid_price", "volume", "gas_gwei", "liquidity_usd"]].apply(pd.to_numeric, errors="coerce")
-    invalid_mask = timestamp.isna() | numeric.isna().any(axis=1)
-    if (numeric <= 0).any().any():
-        issues.append("numeric fields must be positive")
-        invalid_mask |= (numeric <= 0).any(axis=1)
-    if not events["side"].isin({"buy", "sell"}).all():
-        issues.append("side must contain only buy or sell")
-        invalid_mask |= ~events["side"].isin({"buy", "sell"})
-    if not timestamp.is_monotonic_increasing:
-        issues.append("timestamps must be sorted")
-    duplicate_rows = int(events.duplicated(subset=["timestamp", "pool", "mid_price", "volume"]).sum())
-    return QualityReport(len(events), int(invalid_mask.sum()), duplicate_rows, (), tuple(dict.fromkeys(issues)))
+    if events.empty:
+        return QualityReport(0, 0, 0, (), ("event batch is empty",))
+
+    issues = []
+    frame = events.copy()
+    timestamp = pd.to_datetime(frame["timestamp"], utc=True, format="mixed", errors="coerce")
+    frame["timestamp"] = timestamp
+    columns = sorted(NUMERIC_COLUMNS | OPTIONAL_NUMERIC_COLUMNS.intersection(frame.columns))
+    frame[columns] = frame[columns].apply(pd.to_numeric, errors="coerce")
+    numeric = frame[columns].to_numpy(dtype=float)
+    checks = (
+        (~np.isfinite(numeric).all(axis=1) | (numeric <= 0).any(axis=1), "numeric fields must be finite and positive"),
+        (timestamp.isna(), "timestamps must be valid"),
+        (~frame["side"].isin({"buy", "sell"}), "side must contain only buy or sell"),
+        (frame["pool"].isna() | frame["pool"].astype(str).str.strip().eq(""), "pool identifiers cannot be empty"),
+    )
+    invalid = np.zeros(len(frame), dtype=bool)
+    for mask, message in checks:
+        if mask.any():
+            issues.append(message)
+            invalid |= np.asarray(mask)
+    identity = ["pool", "event_id"] if "event_id" in frame else ["timestamp", "pool", "mid_price", "volume", "side"]
+    if "event_id" in frame:
+        missing_id = frame["event_id"].isna() | frame["event_id"].astype(str).str.strip().eq("")
+        if missing_id.any():
+            issues.append("event_id cannot be empty when supplied")
+            invalid |= np.asarray(missing_id)
+    duplicates = int(frame.duplicated(subset=identity).sum())
+    return QualityReport(len(frame), int(invalid.sum()), duplicates, (), tuple(issues))
