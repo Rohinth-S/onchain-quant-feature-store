@@ -1,12 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "onchain-feature-store"
-version = "0.1.0"
-description = "Reproducible quantitative research system"
+version = "0.2.0"
+description = "Point-in-time on-chain features and walk-forward research"
 requires-python = ">=3.11"
 dependencies = [
+    "duckdb>=1.1",
     "numpy>=1.26",
     "pandas>=2.1",
+    "polars>=1.0",
+    "pyarrow>=16",
 ]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
 
 [project.scripts]
 onchain_feature_store = "feature_store.cli:main"
