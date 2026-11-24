@@ -2,6 +2,8 @@ name: ci
 on:
   push:
   pull_request:
+permissions:
+  contents: read
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -10,5 +12,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m pip install -e . pytest
-      - run: pytest -q
+      - run: python -m pip install '.[test]'
+      - run: python -m pytest -q
+      - run: onchain_feature_store --dataset-dir /tmp/feature-snapshot --output /tmp/report.json
